@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solara Bay — Open World Crime</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<canvas id="game" aria-label="Solara Bay: an open-world crime game. Walk, steal cars, outrun the police and run missions for Mara Solis."></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud" class="hidden">
+  <div id="top-left">
+    <div id="cash">$250</div>
+    <div id="health-bar"><div id="health-fill"></div></div>
+    <div id="mission-count">0/6 missions</div>
+  </div>
+  <div id="top-right">
+    <div id="stars">☆☆☆☆☆</div>
+    <div id="timer" style="display:none"></div>
+  </div>
+  <div id="objective" style="display:none"><span id="objective-text"></span> <span id="distance"></span></div>
+  <div id="mission-banner">
+    <div id="mission-title"></div>
+    <div id="mission-brief"></div>
+  </div>
+  <div id="next-mission"><span id="next-mission-text"></span> <button id="mission-start-btn">Start mission (M)</button></div>
+  <div id="toast"></div>
+  <div id="dialogue"></div>
+  <div id="prompt" style="display:none"></div>
+  <div id="crosshair">+</div>
+  <div id="hitmark">✕</div>
+  <div id="bust" style="display:none"><div id="bust-label">THEY ARE GRABBING YOU…</div><div id="bust-bar"><div id="bust-fill"></div></div></div>
+  <canvas id="minimap" width="190" height="190"></canvas>
+  <div id="speed" style="display:none"><span id="speed-num">0</span><span id="speed-unit"> km/h</span><div id="speed-car"></div></div>
+  <div id="controls-hint">WASD move / drive · E car · F punch · Click shoot · Shift run · Space jump · M mission · P pause</div>
+  <div id="complete">🏆 KING OF THE BAY — all six missions complete. Solara Bay is yours, Rico.</div>
+</div>
+<div id="damage"></div>
+<div id="boot-error" style="display:none"></div>
+
+<div id="start-screen" class="overlay show">
+  <div class="panel">
+    <h1>SOLARA BAY</h1>
+    <h2>An open-world crime story</h2>
+    <p class="story">Rico Vale just rolled into Solara Bay with $250, a borrowed jacket and a
+    reputation to build. Mara Solis runs jobs out of a garage on Coral Row — steal cars,
+    run packages, dodge the Bay PD, settle scores on the pier, and take the crown of the bay.</p>
+    <p class="features">🚗 Steal &amp; drive cars · 🚔 Wanted levels &amp; police chases · 👥 Traffic &amp; pedestrians ·
+    🎯 6 story missions · 🔫 Fists &amp; pistol combat · 🗺️ Live minimap · 💾 Save &amp; continue</p>
+    <div class="buttons">
+      <button id="start-btn">▶ New game</button>
+      <button id="continue-btn">↻ Continue</button>
+      <button id="sound-btn">🔊 Sound: on</button>
+    </div>
+    <table class="controls">
+      <tr><td>W A S D / arrows</td><td>Walk / drive</td><td>E</td><td>Steal / enter / exit car</td></tr>
+      <tr><td>Mouse drag</td><td>Look around</td><td>F</td><td>Punch</td></tr>
+      <tr><td>Left click</td><td>Shoot pistol</td><td>Shift</td><td>Run</td></tr>
+      <tr><td>Space</td><td>Jump</td><td>M</td><td>Start next mission</td></tr>
+      <tr><td>Wheel</td><td>Zoom camera</td><td>P / Esc</td><td>Pause</td></tr>
+    </table>
+    <p class="foot">An original game. Solara Bay, its people and its story were invented for this game —
+    nothing here is taken from any commercial game. Runs fully offline; sound is synthesised live.</p>
+  </div>
+</div>
+
+<div id="pause-screen" class="overlay">
+  <div class="panel">
+    <h1>PAUSED</h1>
+    <p class="story">Solara Bay waits for no one. Except right now — it is waiting for you.</p>
+    <div class="buttons">
+      <button id="resume-btn">▶ Resume</button>
+      <button id="restart-mission-btn">↻ Restart mission</button>
+      <button id="save-menu-btn">💾 Save &amp; main menu</button>
+      <button id="mute-btn">🔊 Mute</button>
+    </div>
+  </div>
+</div>
+
+<div id="end-screen" class="overlay">
+  <div class="panel">
+    <h1 id="end-title">BUSTED</h1>
+    <p class="story" id="end-sub"></p>
+    <div class="buttons">
+      <button id="respawn-btn">✚ Get back on your feet (Enter)</button>
+    </div>
+  </div>
+</div>
+
+<script src="./vendor/three.min.js"></script>
+<script src="./src/util.js"></script>
+<script src="./src/config.js"></script>
+<script src="./src/textures.js"></script>
+<script src="./src/audio.js"></script>
+<script src="./src/city.js"></script>
+<script src="./src/vehicles.js"></script>
+<script src="./src/pedestrians.js"></script>
+<script src="./src/police.js"></script>
+<script src="./src/combat.js"></script>
+<script src="./src/missions.js"></script>
+<script src="./src/player.js"></script>
+<script src="./src/hud.js"></script>
+<script src="./src/save.js"></script>
+<script src="./src/main.js"></script>
+</body>
+</html>
