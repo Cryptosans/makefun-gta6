@@ -1,41 +1,49 @@
-// save.js — save and load for Solara Bay, in localStorage: cash, missions,
-// collected pickups and the player's last spot. Nothing leaves the browser.
-(function () {
-  'use strict';
+// Solara Bay — save / continue via localStorage. Stores cash, story
+// progress, the player's spot and health, and the current weapon. Wanted
+// is never saved: a fresh session starts clean, like a new day in the bay.
+import { CONFIG } from './config.js';
 
-  function saveGame(game) {
+export const SaveSys = {
+  hasSave() {
     try {
-      var data = {
-        v: 1,
-        cash: game.cash,
-        missionsDone: game.missions.index,
-        pickupsTaken: game.world.pickups.map(function (p) { return p.taken ? 1 : 0; }),
-        health: game.player.health,
-        x: game.player.x, z: game.player.z,
-        savedAt: Date.now(),
-      };
-      localStorage.setItem(window.SB.CONFIG.saveKey, JSON.stringify(data));
-      return true;
-    } catch (e) {
+      return localStorage.getItem(CONFIG.saveKey) !== null;
+    } catch {
       return false;
     }
-  }
+  },
 
-  function loadGame() {
+  save(data) {
     try {
-      var raw = localStorage.getItem(window.SB.CONFIG.saveKey);
+      const payload = {
+        version: 1,
+        savedAt: Date.now(),
+        cash: data.cash,
+        completed: [...data.completed],
+        player: { x: data.playerX, z: data.playerZ, heading: data.heading, health: data.health },
+        weapon: data.weapon,
+        ammo: data.ammo,
+        reserve: data.reserve,
+      };
+      localStorage.setItem(CONFIG.saveKey, JSON.stringify(payload));
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  load() {
+    try {
+      const raw = localStorage.getItem(CONFIG.saveKey);
       if (!raw) return null;
-      var data = JSON.parse(raw);
-      if (!data || data.v !== 1) return null;
+      const data = JSON.parse(raw);
+      if (data.version !== 1 || !Array.isArray(data.completed)) return null;
       return data;
-    } catch (e) {
+    } catch {
       return null;
     }
-  }
+  },
 
-  function hasSave() { return loadGame() !== null; }
-
-  window.SB.saveGame = saveGame;
-  window.SB.loadGame = loadGame;
-  window.SB.hasSave = hasSave;
-})();
+  clear() {
+    try { localStorage.removeItem(CONFIG.saveKey); } catch { /* private mode */ }
+  },
+};

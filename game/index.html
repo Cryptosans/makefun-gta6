@@ -1,109 +1,102 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Solara Bay — Open World Crime</title>
+<title>Solara Bay — an open-world crime game</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="./style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.min.js"
+  }
+}
+</script>
 </head>
 <body>
-<canvas id="game" aria-label="Solara Bay: an open-world crime game. Walk, steal cars, outrun the police and run missions for Mara Solis."></canvas>
-<p id="status" role="status" aria-live="polite"></p>
+<canvas id="game"></canvas>
 
+<div id="vignette" class="hidden"></div>
+
+<!-- In-game HUD -->
 <div id="hud" class="hidden">
-  <div id="top-left">
+  <div id="hud-top-left">
+    <div id="health-bar"><div id="health-fill"></div><span id="health-text">100</span></div>
     <div id="cash">$250</div>
-    <div id="health-bar"><div id="health-fill"></div></div>
-    <div id="mission-count">0/6 missions</div>
+    <div id="wanted"></div>
   </div>
-  <div id="top-right">
-    <div id="stars">☆☆☆☆☆</div>
-    <div id="timer" style="display:none"></div>
+  <div id="hud-top-right">
+    <canvas id="minimap" width="190" height="190"></canvas>
+    <div id="clock">DAY 1 — 10:00</div>
   </div>
-  <div id="objective" style="display:none"><span id="objective-text"></span> <span id="distance"></span></div>
-  <div id="mission-banner">
-    <div id="mission-title"></div>
-    <div id="mission-brief"></div>
+  <div id="hud-bottom-left">
+    <div id="speed"></div>
+    <div id="weapon-line"><span id="weapon">FISTS</span> <span id="ammo">—</span></div>
   </div>
-  <div id="next-mission"><span id="next-mission-text"></span> <button id="mission-start-btn">Start mission (M)</button></div>
-  <div id="toast"></div>
-  <div id="dialogue"></div>
-  <div id="prompt" style="display:none"></div>
-  <div id="crosshair">+</div>
-  <div id="hitmark">✕</div>
-  <div id="bust" style="display:none"><div id="bust-label">THEY ARE GRABBING YOU…</div><div id="bust-bar"><div id="bust-fill"></div></div></div>
-  <canvas id="minimap" width="190" height="190"></canvas>
-  <div id="speed" style="display:none"><span id="speed-num">0</span><span id="speed-unit"> km/h</span><div id="speed-car"></div></div>
-  <div id="controls-hint">WASD move / drive · E car · F punch · Click shoot · Shift run · Space jump · M mission · P pause</div>
-  <div id="complete">🏆 KING OF THE BAY — all six missions complete. Solara Bay is yours, Rico.</div>
-</div>
-<div id="damage"></div>
-<div id="boot-error" style="display:none"></div>
-
-<div id="start-screen" class="overlay show">
-  <div class="panel">
-    <h1>SOLARA BAY</h1>
-    <h2>An open-world crime story</h2>
-    <p class="story">Rico Vale just rolled into Solara Bay with $250, a borrowed jacket and a
-    reputation to build. Mara Solis runs jobs out of a garage on Coral Row — steal cars,
-    run packages, dodge the Bay PD, settle scores on the pier, and take the crown of the bay.</p>
-    <p class="features">🚗 Steal &amp; drive cars · 🚔 Wanted levels &amp; police chases · 👥 Traffic &amp; pedestrians ·
-    🎯 6 story missions · 🔫 Fists &amp; pistol combat · 🗺️ Live minimap · 💾 Save &amp; continue</p>
-    <div class="buttons">
-      <button id="start-btn">▶ New game</button>
-      <button id="continue-btn">↻ Continue</button>
-      <button id="sound-btn">🔊 Sound: on</button>
-    </div>
-    <table class="controls">
-      <tr><td>W A S D / arrows</td><td>Walk / drive</td><td>E</td><td>Steal / enter / exit car</td></tr>
-      <tr><td>Mouse drag</td><td>Look around</td><td>F</td><td>Punch</td></tr>
-      <tr><td>Left click</td><td>Shoot pistol</td><td>Shift</td><td>Run</td></tr>
-      <tr><td>Space</td><td>Jump</td><td>M</td><td>Start next mission</td></tr>
-      <tr><td>Wheel</td><td>Zoom camera</td><td>P / Esc</td><td>Pause</td></tr>
-    </table>
-    <p class="foot">An original game. Solara Bay, its people and its story were invented for this game —
-    nothing here is taken from any commercial game. Runs fully offline; sound is synthesised live.</p>
-  </div>
-</div>
-
-<div id="pause-screen" class="overlay">
-  <div class="panel">
-    <h1>PAUSED</h1>
-    <p class="story">Solara Bay waits for no one. Except right now — it is waiting for you.</p>
-    <div class="buttons">
-      <button id="resume-btn">▶ Resume</button>
-      <button id="restart-mission-btn">↻ Restart mission</button>
-      <button id="save-menu-btn">💾 Save &amp; main menu</button>
-      <button id="mute-btn">🔊 Mute</button>
+  <div id="hud-bottom-right">
+    <div id="objective">
+      <div id="objective-title">FREE ROAM</div>
+      <div id="objective-text">Find a pink marker and press E to start a mission.</div>
+      <div id="timer" class="hidden"></div>
     </div>
   </div>
+  <div id="hint" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+  <div id="banner" class="hidden">
+    <div id="banner-title"></div>
+    <div id="banner-sub"></div>
+  </div>
+  <div id="controls-hint">WASD move/drive · E enter car / start mission · F attack · Q weapon · R reload · Shift run · Esc pause · N mute</div>
 </div>
 
-<div id="end-screen" class="overlay">
+<!-- Title screen -->
+<div id="start-screen">
+  <div class="title-wrap">
+    <h1>SOLARA<span> BAY</span></h1>
+    <p class="tagline">An open-world crime story. Steal it. Drive it. Survive it.</p>
+    <div class="menu-buttons">
+      <button id="btn-new">NEW GAME</button>
+      <button id="btn-continue" class="hidden">CONTINUE</button>
+      <button id="btn-howto">HOW TO PLAY</button>
+    </div>
+    <div id="howto" class="hidden">
+      <p><b>Rio Vela</b> is back in Solara Bay, broke and owed. Six jobs stand between him and the big score.</p>
+      <p><b>On foot:</b> WASD to move, Shift to run, E to steal a car or start a mission at a pink marker, F or click to punch, Q to draw the pistol, R to reload.</p>
+      <p><b>Driving:</b> W/S to accelerate and brake, A/D to steer, E to get out. Stealing a car and hurting locals raises your wanted level — the Solara Bay PD sends one cruiser per star.</p>
+      <p><b>Missions:</b> follow the yellow beacon and the minimap diamond. Progress saves automatically; Continue picks up where you left off.</p>
+    </div>
+    <p class="credits">An original game — city, characters, story, art and sound all made for this entry. No Rockstar material.</p>
+  </div>
+</div>
+
+<!-- Pause screen -->
+<div id="pause-screen" class="hidden">
   <div class="panel">
-    <h1 id="end-title">BUSTED</h1>
-    <p class="story" id="end-sub"></p>
-    <div class="buttons">
-      <button id="respawn-btn">✚ Get back on your feet (Enter)</button>
+    <h2>PAUSED</h2>
+    <div class="menu-buttons">
+      <button id="btn-resume">RESUME</button>
+      <button id="btn-save">SAVE GAME</button>
+      <button id="btn-restart">RESTART STORY</button>
+      <button id="btn-quit-title">QUIT TO TITLE</button>
+    </div>
+    <h3>MISSIONS</h3>
+    <div id="mission-list"></div>
+    <p class="panel-note">Click a mission to start it. Story order: First Wheels · Bay Runner · Hot Pursuit · Dockside Brawl · The Pickup · The Big Score.</p>
+  </div>
+</div>
+
+<!-- Busted / wasted screen -->
+<div id="wasted-screen" class="hidden">
+  <div class="panel wasted-panel">
+    <h2 id="wasted-title">BUSTED</h2>
+    <p id="wasted-sub"></p>
+    <div class="menu-buttons">
+      <button id="btn-respawn">WAKE UP AT THE HOSPITAL</button>
     </div>
   </div>
 </div>
 
-<script src="./vendor/three.min.js"></script>
-<script src="./src/util.js"></script>
-<script src="./src/config.js"></script>
-<script src="./src/textures.js"></script>
-<script src="./src/audio.js"></script>
-<script src="./src/city.js"></script>
-<script src="./src/vehicles.js"></script>
-<script src="./src/pedestrians.js"></script>
-<script src="./src/police.js"></script>
-<script src="./src/combat.js"></script>
-<script src="./src/missions.js"></script>
-<script src="./src/player.js"></script>
-<script src="./src/hud.js"></script>
-<script src="./src/save.js"></script>
-<script src="./src/main.js"></script>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -1,93 +1,44 @@
+# makefun-gta6
+
 [![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 [![rank](https://make.fun/badge/gta6-01/Cryptosans/makefun-gta6/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 [![reward](https://make.fun/badge/gta6-01/Cryptosans/makefun-gta6/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
-<sub>Entered on [make.fun](https://make.fun/?ref=nstczpc4&utm_source=github&utm_medium=readme&utm_campaign=gta6-01) · AI agents build software for cash rewards</sub>
 
-# Solara Bay — Open World Crime
+**Solara Bay** — an original open-world crime game built for make.fun's "Make GTA 6" bounty ($1,666 in USDC). Rio Vela is back in Solara Bay, broke and owed: steal cars, outrun the PD, and work six story missions from a first stolen sedan to the big score at Solara National Bank. The city, characters, story, art and sound are all original — no Rockstar material.
 
-An original open-world crime game for make.fun's **"Make GTA 6"** bounty (`gta6-01`).
-Rico Vale just rolled into **Solara Bay** — a sun-soaked coastal city invented for this
-game — with $250 and a reputation to build. Work for fixer Mara Solis: steal cars, run
-packages, dodge the Bay PD, settle scores on the pier, and become King of the Bay.
+## What is in the game
 
-## Play
+- A drivable 3D city: streets, towers, a beach, a bay and a pier, built procedurally with three.js (vendored, offline)
+- On foot and by car, with car stealing (E) — parked cars and traffic cars
+- Traffic (14 cars) and pedestrians (26 locals) living on the road grid
+- Wanted level 0–5 with police cruisers that chase, ram and bust you
+- 6 story missions: First Wheels, Bay Runner, Hot Pursuit, Dockside Brawl, The Pickup, The Big Score
+- Combat: fists and a pistol, plus hostile Viper thugs
+- HUD with health, cash, wanted stars, speed and a live minimap
+- Start screen, pause menu with a mission list, save / continue via localStorage
+- Synthesized WebAudio sound: engine hum, sirens, gunshots, mission jingles — no audio files
+
+## Run it
 
 ```sh
-node serve.ts        # serves game/ on http://localhost:8080
+npx serve game
+# open http://localhost:3000 in desktop Chrome — no network needed, everything is local
 ```
 
-Open `http://localhost:8080` in desktop Chrome. No build step, no network request:
-everything the game loads is a file under `game/` (three.js r128 is vendored as
-`game/vendor/three.min.js`; every texture is drawn at runtime on canvas, every sound
-is synthesised live with WebAudio).
-
-## What's in the city
-
-- **A city to explore on foot and by car** — grid streets, downtown towers, beach,
-  pier, marina and a lighthouse; drive with arcade handling or walk, run and jump.
-- **Traffic & pedestrians** — cars drive the road graph (slowing for traffic ahead),
-  pedestrians walk the sidewalks and flee gunfire and speeding cars.
-- **Steal & drive** — press `E` near any parked or moving car. The driver of a moving
-  car bails and runs; stealing in the open raises your wanted level.
-- **Wanted level & police** — 5 stars, police cars that chase and ram, officers on foot
-  who arrest you, pot-shots at 3+ stars, heat that cools off when you lay low.
-  Get busted or wasted and you wake up at Solara General, lighter in the pocket.
-- **6 story missions** — Fresh Wheels, Bay Runner (timed delivery), Heat Check
-  (get hot, then go cold), Pier Payback (4 Dock Rats), The Getaway (3-star escort),
-  King of the Bay (3 drops + the lighthouse). Cash rewards, dialogue, objective
-  markers and a save that persists in the browser.
-- **Combat** — fists (`F`) and a pistol (left click) with tracers and muzzle flash.
-- **HUD & minimap** — cash, health, wanted stars, mission objective with distance,
-  speedometer, live minimap (traffic, police, pickups, mission marker).
-- **Polish** — start screen, pause menu, save/continue, synthesised engine hum,
-  sirens, gunshots and a bassline loop, damage flash, bust meter, camera orbit/zoom.
+Or any static server: `python3 -m http.server --directory game 8080`.
 
 ## Controls
 
-| Key | Action |
-| --- | --- |
-| WASD / arrows | Walk / drive |
-| Mouse drag | Look around (wheel zooms) |
-| E | Steal / enter / exit car |
-| F | Punch |
-| Left click | Shoot pistol |
-| Shift / Space | Run / jump |
-| M | Start next mission |
-| H | Horn · C camera distance · P / Esc pause |
+WASD move / drive · E enter car / start mission · F or click attack · Q switch weapon · R reload · Shift run · Esc pause · N mute · drag mouse to orbit the camera
 
-## Layout
+## Hand in
 
-```
-game/
-  index.html            page + HUD DOM
-  style.css             HUD and menu styling
-  vendor/three.min.js   three.js r128 (vendored library)
-  src/
-    util.js             seeded RNG, math, DOM helpers
-    config.js           world layout, palette, names
-    textures.js         canvas-drawn building/road/sand textures
-    audio.js            WebAudio synth: engine, siren, shots, music
-    city.js             the city: roads, towers, beach, pier, lighthouse
-    vehicles.js         car models, traffic AI, driving physics
-    pedestrians.js      person models, sidewalk walkers, gang
-    police.js           wanted system, chases, busts
-    combat.js           punching, pistol, tracers, damage
-    missions.js         the six-mission story
-    player.js           Rico on foot and behind the wheel, camera rig
-    hud.js              HUD, minimap, toasts, dialogue, menus
-    save.js             localStorage save / load
-    main.js             boot, game loop, state machine, shot setups
-main.ts                 entry program: copies game/ + screenshots/ to /output,
-                        writes /output/dossier.json
-screenshots/            4 real renders of the game in headless Chromium
+```sh
+mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-## Originality
+`main.ts` (Node 22, standard library only) copies `game/` and `screenshots/` to the output directory and writes `dossier.json` with `vendor/makefun-game.ts`.
 
-Solara Bay, Rico Vale, Mara Solis, the Dock Rats, every street name, vehicle name,
-texture and sound in this game were invented for it. Nothing is taken from Rockstar
-Games, Grand Theft Auto, or any other commercial game.
+---
 
-## License
-
-MIT — see [LICENSE](LICENSE).
+<sub>Entered on [make.fun](https://make.fun/?ref=Cryptosans&utm_source=github&utm_medium=readme&utm_campaign=gta6-01) · AI agents build software for cash rewards</sub>
