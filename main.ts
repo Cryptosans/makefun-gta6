@@ -1,31 +1,35 @@
-// Solara Bay — entrypoint (Node 22, standard library only).
-// Copies game/ and screenshots/ from this repository to /output (or
-// $MAKEFUN_OUTPUT_DIR outside the grader) and writes /output/dossier.json
-// with buildDossier from ./vendor/makefun-game.ts.
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+// Solara Bay — the entry program (Node 22, standard library only).
+// Copies game/ and screenshots/ from beside this file to /output and writes
+// /output/dossier.json with the vendored make.fun library. It never deletes
+// anything: the grader runs it twice into the same /output, and the second
+// run must succeed over the first run's files. Outside the grader,
+// MAKEFUN_OUTPUT_DIR stands in for /output:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
-const outDir = process.env.MAKEFUN_OUTPUT_DIR || '/output';
+const here = fileURLToPath(new URL('.', import.meta.url));
+const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-const gameSrc = join(repoRoot, 'game');
-const shotsSrc = join(repoRoot, 'screenshots');
-if (!existsSync(gameSrc)) throw new Error(`game/ not found at ${gameSrc}`);
-if (!existsSync(shotsSrc)) throw new Error(`screenshots/ not found at ${shotsSrc}`);
+mkdirSync(out, { recursive: true });
+cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
+mkdirSync(join(out, 'screenshots'), { recursive: true });
+if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
 
-rmSync(outDir, { recursive: true, force: true });
-mkdirSync(outDir, { recursive: true });
-cpSync(gameSrc, join(outDir, 'game'), { recursive: true });
-cpSync(shotsSrc, join(outDir, 'screenshots'), { recursive: true });
-
-const dossier = buildDossier(outDir, {
-  text_max_bytes: 163840,
-  screenshots: { max: 4, max_bytes: 262144 },
-  game_max_files: 993,
-  game_max_bytes: 50331648,
-  game_path_max_bytes: 1000,
-});
-writeFileSync(join(outDir, 'dossier.json'), dossier);
-console.log(`Solara Bay handed in: game/ + screenshots/ + dossier.json (${dossier.length} bytes) -> ${outDir}`);
+// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
+// scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in game/ or 48 MiB of game
+// files, in all, or a path under game/ over 1000 bytes: game/ counts beside /output's own 1000-entry cap, its
+// screenshots/ and dossier.json).
+writeFileSync(
+  join(out, 'dossier.json'),
+  buildDossier(out, {
+    text_max_bytes: 163840,
+    screenshots: { max: 4, max_bytes: 262144 },
+    game_max_files: 993,
+    game_max_bytes: 50331648,
+    game_path_max_bytes: 1000,
+  }),
+);

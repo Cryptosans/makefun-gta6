@@ -1,49 +1,25 @@
-// Solara Bay — save / continue via localStorage. Stores cash, story
-// progress, the player's spot and health, and the current weapon. Wanted
-// is never saved: a fresh session starts clean, like a new day in the bay.
-import { CONFIG } from './config.js';
+// Solara Bay — save / continue via localStorage. Nothing leaves the browser.
+const KEY = 'solara-bay-save-v1';
 
-export const SaveSys = {
-  hasSave() {
-    try {
-      return localStorage.getItem(CONFIG.saveKey) !== null;
-    } catch {
-      return false;
-    }
-  },
+export function loadSave() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (typeof s !== 'object' || s === null) return null;
+    return s;
+  } catch (e) { return null; }
+}
 
-  save(data) {
-    try {
-      const payload = {
-        version: 1,
-        savedAt: Date.now(),
-        cash: data.cash,
-        completed: [...data.completed],
-        player: { x: data.playerX, z: data.playerZ, heading: data.heading, health: data.health },
-        weapon: data.weapon,
-        ammo: data.ammo,
-        reserve: data.reserve,
-      };
-      localStorage.setItem(CONFIG.saveKey, JSON.stringify(payload));
-      return true;
-    } catch {
-      return false;
-    }
-  },
+export function writeSave(data) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
+    return true;
+  } catch (e) { return false; }
+}
 
-  load() {
-    try {
-      const raw = localStorage.getItem(CONFIG.saveKey);
-      if (!raw) return null;
-      const data = JSON.parse(raw);
-      if (data.version !== 1 || !Array.isArray(data.completed)) return null;
-      return data;
-    } catch {
-      return null;
-    }
-  },
+export function clearSave() {
+  try { localStorage.removeItem(KEY); } catch (e) {}
+}
 
-  clear() {
-    try { localStorage.removeItem(CONFIG.saveKey); } catch { /* private mode */ }
-  },
-};
+export function hasSave() { return loadSave() !== null; }

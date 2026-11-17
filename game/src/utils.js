@@ -1,62 +1,78 @@
-// Solara Bay — small pure helpers shared by every system. No DOM, no
-// three.js here: anything that only needs numbers lives in this file.
-export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-export const lerp = (a, b, t) => a + (b - a) * t;
-
-/** Shortest-arc interpolation between two headings (radians). */
-export function lerpAngle(a, b, t) {
+// Solara Bay — small math and collision helpers shared by every system.
+export function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+export function lerp(a, b, t) { return a + (b - a) * t; }
+export function damp(a, b, lambda, dt) { return lerp(a, b, 1 - Math.exp(-lambda * dt)); }
+export function rand(a = 1, b) {
+  if (b === undefined) { b = a; a = 0; }
+  return a + Math.random() * (b - a);
+}
+export function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
+export function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+export function choiceWeighted(pairs) {
+  let total = 0;
+  for (const [, w] of pairs) total += w;
+  let r = Math.random() * total;
+  for (const [v, w] of pairs) { r -= w; if (r <= 0) return v; }
+  return pairs[pairs.length - 1][0];
+}
+// Shortest signed angle difference, radians.
+export function angleDiff(a, b) {
   let d = (b - a) % (Math.PI * 2);
   if (d > Math.PI) d -= Math.PI * 2;
   if (d < -Math.PI) d += Math.PI * 2;
-  return a + d * t;
+  return d;
+}
+export function angleLerp(a, b, t) { return a + angleDiff(a, b) * t; }
+export function dist2D(ax, az, bx, bz) { const dx = ax - bx, dz = az - bz; return Math.hypot(dx, dz); }
+// Format cash like $12,500
+export function fmtCash(n) { return Math.floor(n).toLocaleString('en-US'); }
+// Format a seconds countdown like 1:23
+export function fmtTime(s) {
+  s = Math.max(0, Math.ceil(s));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export const rand = (lo = 0, hi = 1) => lo + Math.random() * (hi - lo);
-export const randInt = (lo, hi) => Math.floor(rand(lo, hi + 1));
-export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-export const dist2D = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
-export const fmtMoney = (n) => '$' + Math.round(n).toLocaleString('en-US');
-
-/** Push a circle (x, z, radius) out of an axis-aligned box. Returns true on hit. */
-export function pushOutOfBox(pos, radius, box) {
-  const cx = clamp(pos.x, box.minX, box.maxX);
-  const cz = clamp(pos.z, box.minZ, box.maxZ);
-  const dx = pos.x - cx;
-  const dz = pos.z - cz;
-  const d2 = dx * dx + dz * dz;
-  if (d2 >= radius * radius) return false;
-  if (d2 > 1e-6) {
-    const d = Math.sqrt(d2);
-    pos.x = cx + (dx / d) * radius;
-    pos.z = cz + (dz / d) * radius;
-  } else {
-    // Centre inside the box: shove out along the shallowest axis.
-    const pushes = [
-      { d: pos.x - box.minX + radius, x: box.minX - radius, z: pos.z },
-      { d: box.maxX - pos.x + radius, x: box.maxX + radius, z: pos.z },
-      { d: pos.z - box.minZ + radius, x: pos.x, z: box.minZ - radius },
-      { d: box.maxZ - pos.z + radius, x: pos.x, z: box.maxZ + radius },
-    ];
-    pushes.sort((a, b) => a.d - b.d);
-    pos.x = pushes[0].x;
-    pos.z = pushes[0].z;
+/**
+ * Push a circle (x,z,r) out of every AABB collider it overlaps.
+ * colliders: [{minX,maxX,minZ,maxZ}]. Mutates `p` ({x,z}) in place.
+ * Returns true when a push happened.
+ */
+export function collideCircle(p, r, colliders) {
+  let hit = false;
+  for (const c of colliders) {
+    const cx = clamp(p.x, c.minX, c.maxX);
+    const cz = clamp(p.z, c.minZ, c.maxZ);
+    const dx = p.x - cx, dz = p.z - cz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < r * r) {
+      hit = true;
+      if (d2 > 1e-6) {
+        const d = Math.sqrt(d2);
+        const push = (r - d) / d;
+        p.x += dx * push;
+        p.z += dz * push;
+      } else {
+        // Centre inside the box: shove out along the smallest penetration axis.
+        const pl = p.x - c.minX, pr = c.maxX - p.x;
+        const pt = p.z - c.minZ, pb = c.maxZ - p.z;
+        const m = Math.min(pl, pr, pt, pb);
+        if (m === pl) p.x = c.minX - r;
+        else if (m === pr) p.x = c.maxX + r;
+        else if (m === pt) p.z = c.minZ - r;
+        else p.z = c.maxZ + r;
+      }
+    }
   }
-  return true;
+  return hit;
 }
 
-/** Resolve a circle against every building collider. Returns hit count. */
-export function collideBuildings(pos, radius, colliders) {
-  let hits = 0;
-  for (const box of colliders) {
-    if (pos.x < box.minX - radius || pos.x > box.maxX + radius) continue;
-    if (pos.z < box.minZ - radius || pos.z > box.maxZ + radius) continue;
-    if (pushOutOfBox(pos, radius, box)) hits++;
-  }
-  return hits;
+export function pointInBox(x, z, b) {
+  return x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ;
 }
 
-/** Keep a point inside the playable square (water edge blocks the south). */
-export function clampToWorld(pos, half) {
-  pos.x = clamp(pos.x, -half, half);
-  pos.z = clamp(pos.z, -half, half);
+// Canvas texture helpers — all art is generated, nothing is fetched.
+export function makeCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
 }

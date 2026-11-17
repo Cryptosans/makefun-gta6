@@ -1,81 +1,74 @@
-// Solara Bay — keyboard + mouse input. Tracks held keys, edge-triggered
-// presses (consumed once), and drag-to-orbit camera angles. No game logic.
+// Solara Bay — keyboard + mouse input, with drag-orbit camera control.
 export class Input {
   constructor(canvas) {
     this.keys = new Set();
-    this.pressed = new Set();
-    this.dragging = false;
-    this.yawDelta = 0;
-    this.pitchDelta = 0;
-    this.wheelDelta = 0;
-    this.lastX = 0;
-    this.lastY = 0;
-    this.onFirstGesture = null;
-    this._gestured = false;
-    this._canvas = canvas;
-
-    window.addEventListener('keydown', (e) => {
+    this.mouseDown = false;
+    this.mouseDX = 0;
+    this.mouseDY = 0;
+    this.canvas = canvas;
+    this.onKey = null; // (code, down) => void — game hooks single presses here
+    this.onMouseDown = null;
+    this._down = (e) => {
       if (e.repeat) return;
       this.keys.add(e.code);
-      this.pressed.add(e.code);
-      this._gesture();
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) {
-        e.preventDefault();
+      if (this.onKey) this.onKey(e.code, true);
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
+    };
+    this._up = (e) => {
+      this.keys.delete(e.code);
+      if (this.onKey) this.onKey(e.code, false);
+    };
+    this._blur = () => { this.keys.clear(); this.mouseDown = false; };
+    this._md = (e) => {
+      if (e.button === 0) {
+        this.mouseDown = true;
+        if (this.onMouseDown) this.onMouseDown();
       }
-    });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
-
-    canvas.addEventListener('mousedown', (e) => {
-      this.dragging = true;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
-      this._gesture();
-    });
-    window.addEventListener('mouseup', () => { this.dragging = false; });
-    window.addEventListener('mousemove', (e) => {
-      if (!this.dragging) return;
-      this.yawDelta += e.clientX - this.lastX;
-      this.pitchDelta += e.clientY - this.lastY;
-      this.lastX = e.clientX;
-      this.lastY = e.clientY;
-    });
-    canvas.addEventListener('wheel', (e) => {
-      this.wheelDelta += e.deltaY;
-      e.preventDefault();
-    }, { passive: false });
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+    this._mu = (e) => { if (e.button === 0) this.mouseDown = false; };
+    this._mm = (e) => {
+      if (this.mouseDown) {
+        this.mouseDX += e.movementX || 0;
+        this.mouseDY += e.movementY || 0;
+      }
+    };
+    this._ctx = (e) => e.preventDefault();
+    window.addEventListener('keydown', this._down);
+    window.addEventListener('keyup', this._up);
+    window.addEventListener('blur', this._blur);
+    canvas.addEventListener('mousedown', this._md);
+    window.addEventListener('mouseup', this._mu);
+    window.addEventListener('mousemove', this._mm);
+    canvas.addEventListener('contextmenu', this._ctx);
   }
 
-  _gesture() {
-    if (this._gestured) return;
-    this._gestured = true;
-    if (this.onFirstGesture) this.onFirstGesture();
+  get forward() {
+    const f = (this.keys.has('KeyW') || this.keys.has('ArrowUp') ? 1 : 0)
+      - (this.keys.has('KeyS') || this.keys.has('ArrowDown') ? 1 : 0);
+    return f;
+  }
+  get strafe() {
+    return (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0)
+      - (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0);
+  }
+  // For driving: A/D steer (left positive = left turn).
+  get steer() { return -this.strafe; }
+  get sprint() { return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'); }
+  get handbrake() { return this.keys.has('Space'); }
+
+  consumeMouse() {
+    const dx = this.mouseDX, dy = this.mouseDY;
+    this.mouseDX = 0; this.mouseDY = 0;
+    return { dx, dy };
   }
 
-  down(code) { return this.keys.has(code); }
-  /** True once, the frame the key went down. Call every frame to consume. */
-  wasPressed(code) {
-    if (!this.pressed.has(code)) return false;
-    this.pressed.delete(code);
-    return true;
+  dispose() {
+    window.removeEventListener('keydown', this._down);
+    window.removeEventListener('keyup', this._up);
+    window.removeEventListener('blur', this._blur);
+    this.canvas.removeEventListener('mousedown', this._md);
+    window.removeEventListener('mouseup', this._mu);
+    window.removeEventListener('mousemove', this._mm);
+    this.canvas.removeEventListener('contextmenu', this._ctx);
   }
-  /** WASD / arrows as a -1..1 axis pair. */
-  moveAxis() {
-    let x = 0, y = 0;
-    if (this.down('KeyA') || this.down('ArrowLeft')) x -= 1;
-    if (this.down('KeyD') || this.down('ArrowRight')) x += 1;
-    if (this.down('KeyW') || this.down('ArrowUp')) y += 1;
-    if (this.down('KeyS') || this.down('ArrowDown')) y -= 1;
-    return { x, y };
-  }
-  /** Consume per-frame camera deltas (pixels dragged, wheel ticks). */
-  consumeCamera() {
-    const out = { yaw: this.yawDelta, pitch: this.pitchDelta, wheel: this.wheelDelta };
-    this.yawDelta = 0;
-    this.pitchDelta = 0;
-    this.wheelDelta = 0;
-    return out;
-  }
-  endFrame() { this.pressed.clear(); }
 }
