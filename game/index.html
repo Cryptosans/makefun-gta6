@@ -3,97 +3,65 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Solara Bay — Open-World Crime</title>
-<link rel="stylesheet" href="./style.css">
-<script type="importmap">
-{ "imports": { "three": "./vendor/three.module.min.js" } }
-</script>
+<title>Solara Bay — Open-World Crime Game</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
 </head>
 <body>
-<div id="app">
-  <canvas id="scene"></canvas>
+<canvas id="game-canvas"></canvas>
 
-  <!-- HUD -->
-  <div id="hud" class="hidden">
-    <div id="hud-top-left">
-      <div id="cash">$<span id="cash-value">0</span></div>
-      <div id="health-bar"><div id="health-fill"></div><span id="health-text">100</span></div>
-      <div id="ammo">AMMO &infin;</div>
-    </div>
-    <div id="hud-top-right">
-      <div id="wanted"><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span><span class="star">&#9733;</span></div>
-      <div id="clock">12:00</div>
-    </div>
-    <div id="objective-box">
-      <div id="mission-title">SOLARA BAY</div>
-      <div id="objective-text">Steal a car.</div>
-      <div id="objective-timer"></div>
-    </div>
-    <div id="compass"><div id="compass-arrow">&#9650;</div><div id="compass-dist"></div></div>
-    <canvas id="minimap" width="200" height="200"></canvas>
-    <div id="speedo" class="hidden"><span id="speed-value">0</span><span id="speed-unit"> km/h</span></div>
-    <div id="crosshair" class="hidden"><div class="ch-dot"></div></div>
-    <div id="banner" class="hidden"></div>
-    <div id="toast" class="hidden"></div>
-    <div id="interact" class="hidden">Press <b>E</b> <span id="interact-label"></span></div>
-    <div id="damage-flash"></div>
-    <div id="crack-bar" class="hidden"><div id="crack-label">CRACKING SAFE</div><div id="crack-track"><div id="crack-fill"></div></div></div>
+<div id="hud" class="hidden">
+  <div id="hud-top-left">
+    <div id="hud-cash">$0</div>
+    <div id="hud-health"><div id="hud-health-fill"></div><span id="hud-health-text">100 HP</span></div>
+    <div id="hud-stars">☆☆☆☆☆</div>
   </div>
-
-  <!-- Start screen -->
-  <div id="menu">
-    <div id="menu-inner">
-      <div id="menu-logo">SOLARA<span>BAY</span></div>
-      <div id="menu-sub">An open-world crime story &middot; Vice Coast, present day</div>
-      <div id="menu-story">
-        You are <b>Rico Vega</b>, a wheelman fresh out of the Solara docks.
-        The Delacroix crew runs this city &mdash; and they just put a price on your head.
-        Steal cars, outrun the law, run the jobs, and take the Bay back.
-      </div>
-      <div id="menu-buttons">
-        <button id="btn-new" class="menu-btn primary">NEW GAME</button>
-        <button id="btn-continue" class="menu-btn hidden">CONTINUE</button>
-        <button id="btn-how" class="menu-btn">HOW TO PLAY</button>
-      </div>
-      <div id="menu-controls" class="hidden">
-        <table>
-          <tr><td>W A S D</td><td>Move / Drive</td></tr>
-          <tr><td>Mouse drag</td><td>Look around (click canvas to lock)</td></tr>
-          <tr><td>Shift</td><td>Sprint</td></tr>
-          <tr><td>E</td><td>Steal / enter car &middot; interact</td></tr>
-          <tr><td>Left click</td><td>Shoot</td></tr>
-          <tr><td>Space</td><td>Handbrake</td></tr>
-          <tr><td>P / Esc</td><td>Pause</td></tr>
-          <tr><td>M</td><td>Mute sound</td></tr>
-        </table>
-      </div>
-      <div id="menu-foot">Solara Bay is an original game. No real city, person or brand is depicted. Runs 100% offline.</div>
-    </div>
+  <div id="hud-top-right">
+    <div id="hud-clock">09:30</div>
+    <div id="hud-mission-name">Solara Bay</div>
+    <div id="hud-timer"></div>
   </div>
-
-  <!-- Pause screen -->
-  <div id="pause" class="hidden">
-    <div id="pause-inner">
-      <div id="pause-title">PAUSED</div>
-      <div id="pause-missions"></div>
-      <button id="btn-resume" class="menu-btn primary">RESUME</button>
-      <button id="btn-restart" class="menu-btn">RESTART STORY</button>
-      <button id="btn-quit" class="menu-btn">QUIT TO MENU</button>
-    </div>
-  </div>
-
-  <!-- Game over -->
-  <div id="gameover" class="hidden">
-    <div id="gameover-inner">
-      <div id="gameover-title">BUSTED / WASTED</div>
-      <div id="gameover-text">The Bay chews up wheelmen who stop moving.</div>
-      <button id="btn-retry" class="menu-btn primary">TRY AGAIN</button>
-      <button id="btn-gomenu" class="menu-btn">MAIN MENU</button>
-    </div>
-  </div>
-
-  <div id="loading">Loading Solara Bay&hellip;</div>
+  <div id="hud-objective"></div>
+  <div id="hud-compass">◆ —</div>
+  <div id="hud-ammo">Ammo 12/12</div>
+  <div id="hud-prompt"></div>
+  <div id="hud-toast"></div>
+  <div id="crosshair">+</div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="hud-controls">WASD drive / walk · E steal car · Space handbrake · Click shoot · Shift run · M mission · R retry / reload · Esc pause</div>
 </div>
+
+<div id="start-screen">
+  <div class="panel">
+    <h1>SOLARA BAY</h1>
+    <p class="tagline">Sun. Sand. Stolen cars. Rico Vega is back on the streets of Solara Bay — a 5×5-block open-world crime game.</p>
+    <p class="story">Fresh out of the Solara docks, Rico owes Mara the fixer one last job. Six missions stand between him and the crown of the city. Steal cars, dodge the Solara PD, and take down the Vipers — or end up just another name on the pier.</p>
+    <div class="buttons">
+      <button id="btn-new">New Game</button>
+      <button id="btn-continue" disabled>Continue</button>
+      <button id="btn-how">Controls</button>
+    </div>
+    <div id="howto" class="hidden">
+      <p><b>WASD / arrows</b> — drive or walk &nbsp;·&nbsp; <b>E</b> — enter / steal / exit car &nbsp;·&nbsp; <b>Space</b> — handbrake</p>
+      <p><b>Mouse</b> — look &nbsp;·&nbsp; <b>Click</b> — shoot pistol &nbsp;·&nbsp; <b>Shift</b> — run &nbsp;·&nbsp; <b>M</b> — start mission &nbsp;·&nbsp; <b>R</b> — retry mission / reload &nbsp;·&nbsp; <b>Esc</b> — pause</p>
+      <p>Follow the gold beacon and the minimap. Crimes raise your wanted level — break line of sight from the police to cool off. Cash pickups drop from defeated enemies.</p>
+    </div>
+    <p class="fine">An original game. No affiliation with Rockstar Games or the Grand Theft Auto series. Runs fully offline in a desktop browser.</p>
+  </div>
+</div>
+
+<div id="pause-screen" class="hidden">
+  <div class="panel">
+    <h1>PAUSED</h1>
+    <p>Solara Bay waits for no one — except right now.</p>
+    <div class="buttons">
+      <button id="btn-resume">Resume</button>
+      <button id="btn-restart">Restart (New Game)</button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

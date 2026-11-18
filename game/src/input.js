@@ -1,74 +1,54 @@
-// Solara Bay — keyboard + mouse input, with drag-orbit camera control.
+// input.js — keyboard + mouse state, pointer lock, edge-triggered keys.
 export class Input {
   constructor(canvas) {
-    this.keys = new Set();
-    this.mouseDown = false;
+    this.canvas = canvas;
+    this.keys = {};
+    this.pressed = {}; // edge-triggered, consumed each frame
     this.mouseDX = 0;
     this.mouseDY = 0;
-    this.canvas = canvas;
-    this.onKey = null; // (code, down) => void — game hooks single presses here
-    this.onMouseDown = null;
-    this._down = (e) => {
-      if (e.repeat) return;
-      this.keys.add(e.code);
-      if (this.onKey) this.onKey(e.code, true);
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
-    };
-    this._up = (e) => {
-      this.keys.delete(e.code);
-      if (this.onKey) this.onKey(e.code, false);
-    };
-    this._blur = () => { this.keys.clear(); this.mouseDown = false; };
-    this._md = (e) => {
-      if (e.button === 0) {
-        this.mouseDown = true;
-        if (this.onMouseDown) this.onMouseDown();
+    this.mouseDown = false;
+    this.mouseClicked = false; // edge-triggered
+    this.locked = false;
+    this.enabled = true;
+    window.addEventListener('keydown', (e) => {
+      if (!this.enabled) return;
+      const k = e.key.toLowerCase();
+      if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
+      if (!this.keys[k]) this.pressed[k] = true;
+      this.keys[k] = true;
+    });
+    window.addEventListener('keyup', (e) => { this.keys[e.key.toLowerCase()] = false; });
+    window.addEventListener('blur', () => { this.keys = {}; });
+    document.addEventListener('mousemove', (e) => {
+      if (this.locked) { this.mouseDX += e.movementX || 0; this.mouseDY += e.movementY || 0; }
+    });
+    document.addEventListener('pointerlockchange', () => {
+      this.locked = document.pointerLockElement === this.canvas;
+    });
+    canvas.addEventListener('mousedown', (e) => {
+      this.mouseDown = true;
+      this.mouseClicked = true;
+      if (!this.locked) {
+        try { canvas.requestPointerLock(); } catch (err) { /* headless may refuse */ }
       }
-    };
-    this._mu = (e) => { if (e.button === 0) this.mouseDown = false; };
-    this._mm = (e) => {
-      if (this.mouseDown) {
-        this.mouseDX += e.movementX || 0;
-        this.mouseDY += e.movementY || 0;
-      }
-    };
-    this._ctx = (e) => e.preventDefault();
-    window.addEventListener('keydown', this._down);
-    window.addEventListener('keyup', this._up);
-    window.addEventListener('blur', this._blur);
-    canvas.addEventListener('mousedown', this._md);
-    window.addEventListener('mouseup', this._mu);
-    window.addEventListener('mousemove', this._mm);
-    canvas.addEventListener('contextmenu', this._ctx);
+    });
+    window.addEventListener('mouseup', () => { this.mouseDown = false; });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }
-
-  get forward() {
-    const f = (this.keys.has('KeyW') || this.keys.has('ArrowUp') ? 1 : 0)
-      - (this.keys.has('KeyS') || this.keys.has('ArrowDown') ? 1 : 0);
-    return f;
+  isDown(...names) { return names.some((n) => !!this.keys[n]); }
+  // True once on the frame the key went down.
+  wasPressed(...names) { return names.some((n) => !!this.pressed[n]); }
+  consumeMouseClick() {
+    const c = this.mouseClicked;
+    this.mouseClicked = false;
+    return c;
   }
-  get strafe() {
-    return (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0)
-      - (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0);
-  }
-  // For driving: A/D steer (left positive = left turn).
-  get steer() { return -this.strafe; }
-  get sprint() { return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'); }
-  get handbrake() { return this.keys.has('Space'); }
-
-  consumeMouse() {
-    const dx = this.mouseDX, dy = this.mouseDY;
+  takeMouseDelta() {
+    const d = { x: this.mouseDX, y: this.mouseDY };
     this.mouseDX = 0; this.mouseDY = 0;
-    return { dx, dy };
+    return d;
   }
-
-  dispose() {
-    window.removeEventListener('keydown', this._down);
-    window.removeEventListener('keyup', this._up);
-    window.removeEventListener('blur', this._blur);
-    this.canvas.removeEventListener('mousedown', this._md);
-    window.removeEventListener('mouseup', this._mu);
-    window.removeEventListener('mousemove', this._mm);
-    this.canvas.removeEventListener('contextmenu', this._ctx);
-  }
+  endFrame() { this.pressed = {}; }
+  // Synthetic helpers used by automated verification drivers.
+  injectKey(code, down) { this.keys[code] = down; if (down) this.pressed[code] = true; }
 }

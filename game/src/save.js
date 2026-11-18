@@ -1,25 +1,42 @@
-// Solara Bay — save / continue via localStorage. Nothing leaves the browser.
+// save.js — localStorage persistence for New Game / Continue.
 const KEY = 'solara-bay-save-v1';
 
-export function loadSave() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (typeof s !== 'object' || s === null) return null;
-    return s;
-  } catch (e) { return null; }
+export function hasSave() {
+  try { return !!window.localStorage.getItem(KEY); } catch (e) { return false; }
 }
-
-export function writeSave(data) {
+export function saveGame(state) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
+    const data = {
+      cash: state.cash,
+      missionIndex: state.missionIndex,
+      health: state.health,
+      playerPos: state.playerPos,
+      playerHeading: state.playerHeading,
+      clockMinutes: state.clockMinutes,
+      savedAt: Date.now(),
+    };
+    window.localStorage.setItem(KEY, JSON.stringify(data));
     return true;
   } catch (e) { return false; }
 }
-
-export function clearSave() {
-  try { localStorage.removeItem(KEY); } catch (e) {}
+export function loadSave() {
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (typeof data.cash !== 'number' || typeof data.missionIndex !== 'number') return null;
+    return data;
+  } catch (e) { return null; }
 }
-
-export function hasSave() { return loadSave() !== null; }
+export function clearSave() {
+  try { window.localStorage.removeItem(KEY); } catch (e) { /* ignore */ }
+}
+export function saveMeta() {
+  const s = loadSave();
+  if (!s) return null;
+  return {
+    cash: s.cash,
+    missionIndex: s.missionIndex,
+    savedAt: s.savedAt,
+  };
+}
