@@ -1,63 +1,79 @@
-// utils.js — small shared helpers: math, angles, seeded randomness, ids.
-export function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-export function lerp(a, b, t) { return a + (b - a) * t; }
-export function rand(a = 1, b) {
-  if (b === undefined) { b = a; a = 0; }
-  return a + Math.random() * (b - a);
+// utils.js — small shared math and random helpers for Solara Bay.
+// Every other module imports from here so the same conventions (angles in
+// radians, positions as plain {x, z} pairs on the ground plane) hold
+// everywhere. Nothing here touches the DOM or the renderer.
+
+export const TAU = Math.PI * 2;
+
+export function clamp(value, min, max) {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
 }
-export function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
-export function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-export function dist2d(ax, az, bx, bz) {
-  const dx = ax - bx, dz = az - bz;
-  return Math.sqrt(dx * dx + dz * dz);
+
+export function lerp(a, b, t) {
+  return a + (b - a) * t;
 }
-export function angleLerp(a, b, t) {
-  let d = b - a;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return a + d * t;
-}
-export function angleDiff(a, b) {
-  let d = b - a;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
+
+// Shortest signed difference between two angles, in (-PI, PI].
+export function angleDiff(from, to) {
+  let d = (to - from) % TAU;
+  if (d > Math.PI) d -= TAU;
+  if (d <= -Math.PI) d += TAU;
   return d;
 }
-// Normalise an angle to [-PI, PI].
-export function normAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
-  return a;
+
+// Move `from` toward `to` by at most `maxStep` radians, taking the short way.
+export function angleLerp(from, to, maxStep) {
+  const d = angleDiff(from, to);
+  if (Math.abs(d) <= maxStep) return to;
+  return from + Math.sign(d) * maxStep;
 }
-// Seeded PRNG (mulberry32) so the city layout is stable per seed.
-export function mulberry32(seed) {
-  let s = seed >>> 0;
-  return function () {
-    s = (s + 0x6D2B79F5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+
+export function rand(min = 0, max = 1) {
+  return min + Math.random() * (max - min);
 }
-let _id = 0;
-export function nextId(prefix = 'id') { _id += 1; return prefix + '-' + _id; }
-// Format seconds as M:SS.
-export function fmtTime(s) {
-  s = Math.max(0, Math.ceil(s));
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+
+export function randInt(min, max) {
+  return Math.floor(rand(min, max + 1));
 }
-// Format cash as $1,250.
-export function fmtCash(n) {
-  return '$' + Math.round(n).toLocaleString('en-US');
+
+export function pick(list) {
+  return list[Math.floor(Math.random() * list.length)];
 }
-// Clock of day: game minutes -> "14:32".
-export function fmtClock(minutes) {
-  const h = Math.floor(minutes / 60) % 24;
-  const m = Math.floor(minutes % 60);
+
+export function dist2D(ax, az, bx, bz) {
+  const dx = ax - bx;
+  const dz = az - bz;
+  return Math.sqrt(dx * dx + dz * dz);
+}
+
+// Heading (radians) that points from (ax, az) toward (bx, bz), using the
+// same convention as the vehicles: forward = (sin(h), cos(h)).
+export function headingTo(ax, az, bx, bz) {
+  return Math.atan2(bx - ax, bz - az);
+}
+
+// Format an integer amount of dollars with a thousands separator.
+export function money(amount) {
+  return '$' + Math.round(amount).toLocaleString('en-US');
+}
+
+// Format in-game minutes since midnight as a 24h clock string.
+export function clockString(minutes) {
+  const total = Math.floor(minutes) % 1440;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
-// Clamp a point inside the playable bounds.
-export function clampToCity(x, z, half = 108) {
-  return { x: clamp(x, -half, half), z: clamp(z, -half, half) };
+
+// A tiny deterministic hash of a string, used to vary building colours
+// without storing extra state.
+export function hashString(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
 }

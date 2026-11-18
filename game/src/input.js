@@ -1,54 +1,91 @@
-// input.js — keyboard + mouse state, pointer lock, edge-triggered keys.
+// input.js — keyboard and mouse state for Solara Bay.
+// One shared object is polled by the player, combat and camera code each
+// frame. Mouse-look accumulates movement deltas while pointer lock is
+// held; clicking the canvas requests the lock.
+
 export class Input {
   constructor(canvas) {
     this.canvas = canvas;
-    this.keys = {};
-    this.pressed = {}; // edge-triggered, consumed each frame
+    this.keys = new Set();
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.mouseDown = false;
-    this.mouseClicked = false; // edge-triggered
-    this.locked = false;
-    this.enabled = true;
+    this.mouseClicked = false;
+    this.pointerLocked = false;
+    this._pressed = new Set();
+
     window.addEventListener('keydown', (e) => {
-      if (!this.enabled) return;
-      const k = e.key.toLowerCase();
-      if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
-      if (!this.keys[k]) this.pressed[k] = true;
-      this.keys[k] = true;
-    });
-    window.addEventListener('keyup', (e) => { this.keys[e.key.toLowerCase()] = false; });
-    window.addEventListener('blur', () => { this.keys = {}; });
-    document.addEventListener('mousemove', (e) => {
-      if (this.locked) { this.mouseDX += e.movementX || 0; this.mouseDY += e.movementY || 0; }
-    });
-    document.addEventListener('pointerlockchange', () => {
-      this.locked = document.pointerLockElement === this.canvas;
-    });
-    canvas.addEventListener('mousedown', (e) => {
-      this.mouseDown = true;
-      this.mouseClicked = true;
-      if (!this.locked) {
-        try { canvas.requestPointerLock(); } catch (err) { /* headless may refuse */ }
+      if (e.repeat) return;
+      this.keys.add(e.code);
+      this._pressed.add(e.code);
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
       }
     });
-    window.addEventListener('mouseup', () => { this.mouseDown = false; });
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+    });
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (this.pointerLocked) {
+        this.mouseDX += e.movementX || 0;
+        this.mouseDY += e.movementY || 0;
+      }
+    });
+    document.addEventListener('pointerlockchange', () => {
+      this.pointerLocked = document.pointerLockElement === this.canvas;
+    });
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.mouseDown = true;
+        this.mouseClicked = true;
+        if (!this.pointerLocked) {
+          try {
+            const result = canvas.requestPointerLock();
+            if (result && result.catch) result.catch(() => {});
+          } catch (err) {
+            // Pointer lock unavailable (e.g. headless); mouse look is optional.
+          }
+        }
+      }
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) this.mouseDown = false;
+    });
   }
-  isDown(...names) { return names.some((n) => !!this.keys[n]); }
-  // True once on the frame the key went down.
-  wasPressed(...names) { return names.some((n) => !!this.pressed[n]); }
-  consumeMouseClick() {
-    const c = this.mouseClicked;
+
+  down(code) {
+    return this.keys.has(code);
+  }
+
+  // True only on the frame the key went down; consumed by endFrame().
+  pressed(code) {
+    return this._pressed.has(code);
+  }
+
+  // Mouse deltas accumulated since the last frame, then zeroed.
+  consumeMouse() {
+    const dx = this.mouseDX;
+    const dy = this.mouseDY;
+    this.mouseDX = 0;
+    this.mouseDY = 0;
+    return { dx, dy };
+  }
+
+  consumeClick() {
+    const clicked = this.mouseClicked;
     this.mouseClicked = false;
-    return c;
+    return clicked;
   }
-  takeMouseDelta() {
-    const d = { x: this.mouseDX, y: this.mouseDY };
-    this.mouseDX = 0; this.mouseDY = 0;
-    return d;
+
+  endFrame() {
+    this._pressed.clear();
   }
-  endFrame() { this.pressed = {}; }
-  // Synthetic helpers used by automated verification drivers.
-  injectKey(code, down) { this.keys[code] = down; if (down) this.pressed[code] = true; }
+
+  exitPointerLock() {
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
 }

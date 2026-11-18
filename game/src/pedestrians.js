@@ -1,115 +1,150 @@
-// pedestrians.js — 26 pedestrians strolling sidewalks; they flee gunfire
-// and nearby car theft, and wander back when the scare passes.
+// pedestrians.js — 26 pedestrians strolling the sidewalks.
+// Each one walks a road line on the sidewalk, turns at intersections,
+// and sprints away from gunfire or a nearby car theft. They are simple
+// box figures with swinging arms so the streets feel alive.
+
 import * as THREE from 'three';
-import { ROAD_COORDS } from './city.js';
-import { clamp, dist2d, rand, pick } from './utils.js';
+import { rand, randInt, pick, dist2D, angleDiff } from './utils.js';
+import { GRID_LINES } from './city.js';
 
-const SHIRT_COLORS = [0xe74c3c, 0x3498db, 0xf39c12, 0x2ecc71, 0x9b59b6, 0x1abc9c, 0xecf0f1, 0x34495e, 0xe67e22, 0xfd79a8];
-const SKIN_COLORS = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac];
+const SHIRTS = [
+  0xd84a4a, 0x4a7ad8, 0x4ad87a, 0xd8c94a, 0x9a4ad8,
+  0xd87a4a, 0x4ad8d2, 0xe0e0e0, 0x333333, 0x7ad84a,
+];
+const SKINS = [0xe8b88a, 0xc98d5f, 0x8a5a34, 0xf0c8a0, 0x6a4128];
 
-export function makePedMesh() {
-  const g = new THREE.Group();
-  const skin = new THREE.MeshLambertMaterial({ color: pick(SKIN_COLORS) });
-  const shirt = new THREE.MeshLambertMaterial({ color: pick(SHIRT_COLORS) });
-  const pants = new THREE.MeshLambertMaterial({ color: pick([0x2c3e50, 0x34495e, 0x5d4037, 0x1a1a1a]) });
-  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.75, 0.28), pants);
-  legs.position.y = 0.38; g.add(legs);
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.65, 0.32), shirt);
-  torso.position.y = 1.08; torso.castShadow = true; g.add(torso);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), skin);
-  head.position.y = 1.62; head.castShadow = true; g.add(head);
-  const armGeo = new THREE.BoxGeometry(0.13, 0.6, 0.13);
-  const armL = new THREE.Mesh(armGeo, shirt); armL.position.set(-0.35, 1.05, 0); g.add(armL);
-  const armR = new THREE.Mesh(armGeo, shirt); armR.position.set(0.35, 1.05, 0); g.add(armR);
-  g.userData.armL = armL; g.userData.armR = armR;
-  return g;
-}
-
-export class Pedestrian {
-  constructor(scene, id) {
-    this.mesh = makePedMesh();
-    this.id = id;
-    // Start on a sidewalk next to a random road.
-    const road = pick(ROAD_COORDS);
-    if (Math.random() < 0.5) {
-      this.x = road + pick([-6.5, 6.5]);
-      this.z = rand(-95, 95);
-    } else {
-      this.x = rand(-95, 95);
-      this.z = road + pick([-6.5, 6.5]);
-    }
-    this.mesh.position.set(this.x, 0, this.z);
-    this.heading = rand(0, Math.PI * 2);
-    this.speed = rand(0.8, 1.6);
-    this.walkPhase = rand(0, 6);
-    this.fleeing = false;
-    this.fleeTimer = 0;
-    this.targetX = this.x;
-    this.targetZ = this.z;
-    this.pickNewTarget();
-    scene.add(this.mesh);
-  }
-  pickNewTarget() {
-    // Walk along a sidewalk: pick a point on a nearby road's sidewalk.
-    const road = pick(ROAD_COORDS);
-    if (Math.random() < 0.5) {
-      this.targetX = road + pick([-6.5, 6.5]);
-      this.targetZ = rand(-95, 95);
-    } else {
-      this.targetX = rand(-95, 95);
-      this.targetZ = road + pick([-6.5, 6.5]);
-    }
-  }
-  scare(fromX, fromZ) {
-    this.fleeing = true;
-    this.fleeTimer = rand(3, 6);
-    // Run away from the scare source.
-    const dx = this.x - fromX, dz = this.z - fromZ;
-    const len = Math.hypot(dx, dz) || 1;
-    this.targetX = clamp(this.x + (dx / len) * 30, -104, 104);
-    this.targetZ = clamp(this.z + (dz / len) * 30, -104, 104);
-    this.speed = rand(3.2, 4.2);
-  }
-  update(dt) {
-    if (this.fleeTimer > 0) {
-      this.fleeTimer -= dt;
-      if (this.fleeTimer <= 0) { this.fleeing = false; this.speed = rand(0.8, 1.6); this.pickNewTarget(); }
-    }
-    const dx = this.targetX - this.x, dz = this.targetZ - this.z;
-    const d = Math.hypot(dx, dz);
-    if (d < 1.5) { this.pickNewTarget(); return; }
-    const want = Math.atan2(dx, dz);
-    let diff = want - this.heading;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    this.heading += clamp(diff, -2.4 * dt, 2.4 * dt);
-    this.x += Math.sin(this.heading) * this.speed * dt;
-    this.z += Math.cos(this.heading) * this.speed * dt;
-    this.x = clamp(this.x, -104, 104);
-    this.z = clamp(this.z, -104, 104);
-    this.mesh.position.set(this.x, 0, this.z);
-    this.mesh.rotation.y = this.heading;
-    // Walk swing.
-    this.walkPhase += dt * (this.fleeing ? 11 : 6);
-    const swing = Math.sin(this.walkPhase) * 0.5;
-    this.mesh.userData.armL.rotation.x = swing;
-    this.mesh.userData.armR.rotation.x = -swing;
-    this.mesh.position.y = Math.abs(Math.sin(this.walkPhase)) * 0.05;
-  }
-}
-
-export class PedestrianSystem {
-  constructor(scene) {
+export class Pedestrians {
+  constructor(scene, city) {
+    this.scene = scene;
+    this.city = city;
     this.peds = [];
-    for (let i = 0; i < 26; i++) this.peds.push(new Pedestrian(scene, i));
-  }
-  update(dt) { for (const p of this.peds) p.update(dt); }
-  // Scare everyone within radius of a point (gunfire, theft).
-  scareNear(x, z, radius = 22) {
-    let count = 0;
-    for (const p of this.peds) {
-      if (dist2d(p.x, p.z, x, z) < radius) { p.scare(x, z); count += 1; }
+    this.group = new THREE.Group();
+    scene.add(this.group);
+    for (let i = 0; i < 26; i++) {
+      this.peds.push(this._makePed());
     }
-    return count;
+  }
+
+  _makePed() {
+    const shirt = pick(SHIRTS);
+    const skin = pick(SKINS);
+    const mesh = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.85, 0.36),
+      new THREE.MeshLambertMaterial({ color: shirt })
+    );
+    body.position.y = 1.05;
+    body.castShadow = true;
+    mesh.add(body);
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.4, 0.4),
+      new THREE.MeshLambertMaterial({ color: skin })
+    );
+    head.position.y = 1.68;
+    head.castShadow = true;
+    mesh.add(head);
+    const legMat = new THREE.MeshLambertMaterial({ color: pick([0x2a2a3a, 0x4a3a2a, 0x5a5a5a]) });
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.62, 0.24), legMat);
+    legL.position.set(-0.16, 0.31, 0);
+    mesh.add(legL);
+    const legR = legL.clone();
+    legR.position.x = 0.16;
+    mesh.add(legR);
+    const armL = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.7, 0.18),
+      new THREE.MeshLambertMaterial({ color: skin })
+    );
+    armL.position.set(-0.4, 1.05, 0);
+    mesh.add(armL);
+    const armR = armL.clone();
+    armR.position.x = 0.4;
+    mesh.add(armR);
+    this.group.add(mesh);
+
+    const alongNS = Math.random() < 0.5;
+    const line = pick(GRID_LINES);
+    const side = Math.random() < 0.5 ? 1 : -1;
+    const along = rand(-115, 115);
+    const ped = {
+      mesh, armL, armR, legL, legR,
+      x: alongNS ? line + side * 9.5 : along,
+      z: alongNS ? along : line + side * 9.5,
+      axis: alongNS ? 'ns' : 'ew',
+      line,
+      side,
+      dir: Math.random() < 0.5 ? 1 : -1,
+      speed: rand(1.2, 2.2),
+      walkPhase: rand(0, Math.PI * 2),
+      fleeTimer: 0,
+      fleeX: 0,
+      fleeZ: 0,
+      heading: 0,
+    };
+    ped.heading = ped.axis === 'ns' ? (ped.dir > 0 ? 0 : Math.PI) : (ped.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
+    mesh.position.set(ped.x, 0, ped.z);
+    mesh.rotation.y = ped.heading;
+    return ped;
+  }
+
+  // Called by the world when a crime happens nearby.
+  alert(x, z, radius) {
+    for (const ped of this.peds) {
+      if (dist2D(ped.x, ped.z, x, z) < radius) {
+        ped.fleeTimer = rand(2.5, 4);
+        ped.fleeX = x;
+        ped.fleeZ = z;
+      }
+    }
+  }
+
+  update(dt) {
+    for (const ped of this.peds) {
+      let speed = ped.speed;
+      if (ped.fleeTimer > 0) {
+        ped.fleeTimer -= dt;
+        speed = 7.5;
+        // Run directly away from the scare point.
+        const away = Math.atan2(ped.x - ped.fleeX, ped.z - ped.fleeZ);
+        ped.heading += angleDiff(ped.heading, away) * Math.min(1, dt * 6);
+      } else {
+        // Stroll along the sidewalk; turn at intersections sometimes.
+        const alongPos = ped.axis === 'ns' ? ped.z : ped.x;
+        const nearestLine = this.city.nearestRoadLine(alongPos);
+        if (Math.abs(alongPos - nearestLine) < 1.5 && Math.random() < dt * 0.5) {
+          ped.axis = ped.axis === 'ns' ? 'ew' : 'ns';
+          ped.line = nearestLine;
+          ped.dir = Math.random() < 0.5 ? 1 : -1;
+          if (ped.axis === 'ns') ped.x = ped.line + ped.side * 9.5;
+          else ped.z = ped.line + ped.side * 9.5;
+        }
+        const targetHeading = ped.axis === 'ns'
+          ? (ped.dir > 0 ? 0 : Math.PI)
+          : (ped.dir > 0 ? Math.PI / 2 : -Math.PI / 2);
+        ped.heading += angleDiff(ped.heading, targetHeading) * Math.min(1, dt * 4);
+      }
+      ped.x += Math.sin(ped.heading) * speed * dt;
+      ped.z += Math.cos(ped.heading) * speed * dt;
+      // Keep them inside the city and off the water.
+      if (Math.abs(ped.x) > 122) ped.x = Math.sign(ped.x) * 122;
+      if (ped.z > 118) ped.z = 118;
+      if (ped.z < -122) ped.z = -122;
+      // Collision with buildings: simple push-out.
+      const fixed = this.city.resolveCollisions(ped.x, ped.z, 0.6);
+      ped.x = fixed.x;
+      ped.z = fixed.z;
+      ped.mesh.position.set(ped.x, 0, ped.z);
+      ped.mesh.rotation.y = ped.heading;
+      // Walk cycle: arms and legs swing opposite.
+      ped.walkPhase += dt * speed * 3.2;
+      const swing = Math.sin(ped.walkPhase) * 0.55;
+      ped.armL.rotation.x = swing;
+      ped.armR.rotation.x = -swing;
+      ped.legL.rotation.x = -swing;
+      ped.legR.rotation.x = swing;
+    }
+  }
+
+  all() {
+    return this.peds;
   }
 }
